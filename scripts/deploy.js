@@ -5,26 +5,41 @@
 // will compile your contracts, add the Hardhat Runtime Environment's members to the
 // global scope, and execute the script.
 const hre = require("hardhat");
+const { items } = require('../src/items.json')
 
-async function main() {
-  const currentTimestampInSeconds = Math.round(Date.now() / 1000);
-  const ONE_YEAR_IN_SECS = 365 * 24 * 60 * 60;
-  const unlockTime = currentTimestampInSeconds + ONE_YEAR_IN_SECS;
-
-  const lockedAmount = hre.ethers.utils.parseEther("1");
-
-  const Lock = await hre.ethers.getContractFactory("Lock");
-  const lock = await Lock.deploy(unlockTime, { value: lockedAmount });
-
-  await lock.deployed();
-
-  console.log(
-    `Lock with 1 ETH and unlock timestamp ${unlockTime} deployed to ${lock.address}`
-  );
+const tokens = (n) => {
+  return ethers.utils.parseUnits(n.toString(), 'ether')
 }
 
-// We recommend this pattern to be able to use async/await everywhere
-// and properly handle errors.
+async function main() {
+  // Setup accounts
+  const [deployer] = await ethers.getSigners();
+
+  // Deploy the contract
+  const Dappazon = await hre.ethers.getContractFactory("Dappazon");
+  const dappazon = await Dappazon.deploy();
+  await dappazon.deployed();
+
+  console.log(`The contract deployed at: ${dappazon.address}`);
+  console.log(`The deployer is: ${deployer.address}`);
+
+  // List items
+  for (let i = 0; i < items.length; i++) {
+    const transaction = await dappazon.connect(deployer).list(
+      items[i].id,
+      items[i].name,
+      items[i].category,
+      items[i].image,
+      tokens(items[i].price),
+      items[i].rating,
+      items[i].stock
+    );
+
+    await transaction.wait();
+    console.log(`Listed item ${items[i].id}: ${items[i].name}`)
+  }
+}
+
 main().catch((error) => {
   console.error(error);
   process.exitCode = 1;
